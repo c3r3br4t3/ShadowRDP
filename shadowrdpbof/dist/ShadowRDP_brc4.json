@@ -1,0 +1,14 @@
+{
+    "register_obj": {
+        "shadowrdp": {
+            "arch": "x64",
+            "artifact": "WINAPI",
+            "description": "Used to request ShadowRDP session invitation",
+            "example": "shadowrdp <HOSTNAME> [<control>|<view>] <SESSIONID>",
+            "file_path": "server_confs/bofs/shadowrdp.x64.brc4.o",
+            "mainArgs": "NA",
+            "minimumArgCount": 3,
+            "optionalArg": "NA"
+        }
+    }
+}
