@@ -13,9 +13,9 @@
 #include "SessEnvRpc.c"
 
 typedef struct Params {
-	ULONG targetsessionid;
-	wchar_t lpswzComputerName[1024];
-	int controlreq;
+    ULONG targetsessionid;
+    wchar_t lpswzComputerName[1024];
+    int controlreq;
     WCHAR** dispatch;
 } Params;
 
@@ -69,7 +69,7 @@ RPC_STATUS CreateBindingHandle(RPC_BINDING_HANDLE* binding_handle, LPWSTR lpswzC
             SecurityQOS.Capabilities = RPC_C_QOS_CAPABILITIES_DEFAULT;
             SecurityQOS.IdentityTracking = RPC_C_QOS_IDENTITY_STATIC;
             LPWSTR spnprepend = L"host/";
-            LPWSTR spn = (LPWSTR)malloc(1024);
+            LPWSTR spn = (LPWSTR)malloc((wcslen(spnprepend) + wcslen(lpswzComputerName) + 1) * sizeof(wchar_t));
             wcscat(spn, spnprepend); wcscat(spn, lpswzComputerName);
             status = RpcBindingSetAuthInfoExW(Binding, (RPC_WSTR)spn, RPC_C_AUTHN_LEVEL_PKT_PRIVACY, RPC_C_AUTHN_GSS_NEGOTIATE, 0, RPC_C_AUTHZ_NAME, (RPC_SECURITY_QOS*)&SecurityQOS);
             if (!status)
@@ -153,13 +153,13 @@ void shadowRDPinv(WCHAR** dispatch, LPWSTR lpswzComputerName, char* control, ULO
         return;
     }
     DWORD exitcode = 0;
-	HANDLE thread = NULL;
-	PVOID handler = NULL;
-	Params * params = NULL;
+    HANDLE thread = NULL;
+    PVOID handler = NULL;
+    Params * params = NULL;
     params = (Params*)malloc(sizeof(Params));
-	wcscpy(params->lpswzComputerName, lpswzComputerName);
-	params->controlreq = controlreq;
-	params->targetsessionid = 1;
+    wcscpy(params->lpswzComputerName, lpswzComputerName);
+    params->controlreq = controlreq;
+    params->targetsessionid = 1;
     params->dispatch = dispatch;
     handler = KERNEL32$AddVectoredExceptionHandler(0, (PVECTORED_EXCEPTION_HANDLER)PvectoredExceptionHandler);
     thread = (HANDLE)MSVCRT$_beginthreadex(NULL, 0, BeginStub, params, 0, NULL);
@@ -171,7 +171,7 @@ void shadowRDPinv(WCHAR** dispatch, LPWSTR lpswzComputerName, char* control, ULO
     }
     if (thread) { KERNEL32$CloseHandle(thread); }
     if (handler) { KERNEL32$RemoveVectoredExceptionHandler(handler); }
-	if(params) {free(params);}
+    if(params) {free(params);}
 }
 
 #ifdef BOF
@@ -184,7 +184,7 @@ void go(char* args, int length) {
     char* StrSesssionId = BeaconDataExtract(&parser, NULL);
     ULONG SessionId = atoi(StrSesssionId);
     int lpswzComputerName_size = MultiByteToWideChar( CP_ACP , 0 , ComputerName , -1, NULL , 0 );
-    LPWSTR lpswzComputerName = (LPWSTR)malloc(lpswzComputerName_size);
+    LPWSTR lpswzComputerName = (LPWSTR)malloc((lpswzComputerName_size + 1) * sizeof(wchar_t));
     MultiByteToWideChar(CP_ACP, 0, ComputerName, -1, lpswzComputerName, lpswzComputerName_size);
     shadowRDPinv(NULL, lpswzComputerName, StrControlreq, SessionId);
     free(lpswzComputerName);
@@ -198,7 +198,7 @@ void coffee(char** argv, int argc, WCHAR** dispatch) {
     char* StrSesssionId = argv[2];
     ULONG SessionId = atoi(StrSesssionId);
     int lpswzComputerName_size = MultiByteToWideChar( CP_ACP , 0 , ComputerName , -1, NULL , 0 );
-    LPWSTR lpswzComputerName = (LPWSTR)malloc(lpswzComputerName_size);
+    LPWSTR lpswzComputerName = (LPWSTR)malloc((lpswzComputerName_size + 1) * sizeof(wchar_t));
     MultiByteToWideChar(CP_ACP, 0, ComputerName, -1, lpswzComputerName, lpswzComputerName_size);
     shadowRDPinv(NULL, lpswzComputerName, StrControlreq, SessionId);
     free(lpswzComputerName);
