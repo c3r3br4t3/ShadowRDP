@@ -1,0 +1,45 @@
+{
+  "name": "shadowrdp",
+  "version": "0.0.0",
+  "command_name": "shadowrdp",
+  "extension_author": "c3r3br4t3",
+  "original_author": "c3r3br4t3",
+  "repo_url": "https://github.com/c3r3br4t3/ShadowRDP",
+  "help": "Obtain invitation for remote session",
+  "long_help": "",
+  "depends_on": "coff-loader",
+  "entrypoint": "go",
+  "files": [
+    {
+      "os": "windows",
+      "arch": "amd64",
+      "path": "shadowrdp.x64.bof.o"
+    }
+  ],
+  "arguments": [
+    {
+      "name": "hostname",
+      "desc": "The remote hostname.",
+      "type": "string",
+      "optional": false
+    },
+    {
+      "name": "control",
+      "desc": "Control level over remote session. Either \"control\" or \"view\".",
+      "type": "string",
+      "optional": false
+    },
+    {
+      "name": "sessionid",
+      "desc": "Target session id.",
+      "type": "string",
+      "optional": false
+    },
+    {
+      "name": "authtype",
+      "desc": "Authentication protocol to use. Either \"NTLM\" or \"KERBEROS\".",
+      "type": "string",
+      "optional": false
+    }
+  ]
+}

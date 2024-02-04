@@ -103,9 +103,7 @@ DECLSPEC_IMPORT	char *		__cdecl MSVCRT$strcat(char *, const char *);
 DECLSPEC_IMPORT	size_t	__cdecl MSVCRT$wcslen(LPCWSTR);
 WINBASEAPI size_t __cdecl MSVCRT$mbstowcs(wchar_t *__restrict__ _Dest, const char *__restrict__ _Source, size_t _MaxCount);
 
-WINBASEAPI void* WINAPI MSVCRT$malloc(SIZE_T);
 WINBASEAPI void *__cdecl MSVCRT$calloc(size_t num, size_t size);
-WINBASEAPI void __cdecl MSVCRT$free(void *memblock);
 DECLSPEC_IMPORT HGLOBAL KERNEL32$GlobalAlloc(UINT uFlags, SIZE_T dwBytes);
 DECLSPEC_IMPORT HGLOBAL KERNEL32$GlobalFree(HGLOBAL hMem);
 
@@ -115,14 +113,20 @@ WINBASEAPI long __cdecl MSVCRT$strtol(const char *string, char **end_ptr, int ba
 DECLSPEC_IMPORT FARPROC WINAPI kernel32$GetProcAddress(HANDLE, CHAR*);
 DECLSPEC_IMPORT HANDLE WINAPI kernel32$LoadLibraryA(CHAR*);
 
+WINADVAPI WINBOOL WINAPI ADVAPI32$SetThreadToken(PHANDLE Thread, HANDLE Token);
+WINADVAPI WINBOOL WINAPI ADVAPI32$OpenThreadToken(HANDLE ThreadHandle, DWORD DesiredAccess, BOOL OpenAsSelf, PHANDLE TokenHandle);
+DECLSPEC_IMPORT HANDLE WINAPI KERNEL32$GetCurrentThread();
+
+#define SetThreadToken ADVAPI32$SetThreadToken
+#define OpenThreadToken ADVAPI32$OpenThreadToken
+#define GetCurrentThread KERNEL32$GetCurrentThread
+
 #define RtlUnicodeStringToAnsiString NTDLL$RtlUnicodeStringToAnsiString
 #define RtlFreeAnsiString NTDLL$RtlFreeAnsiString
 
 #define strtol MSVCRT$strtol
 #define strtoul MSVCRT$strtoul
 #define calloc MSVCRT$calloc
-#define malloc MSVCRT$malloc
-#define free MSVCRT$free
 #define MSVCRT$mbstowcs mbstowcs
 #define _vsnprintf MSVCRT$_vsnprintf
 #define _snprintf MSVCRT$_snprintf

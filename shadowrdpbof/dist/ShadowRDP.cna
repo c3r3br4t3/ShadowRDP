@@ -48,13 +48,13 @@ sub ops {
 #ShadowRDP
 alias shadowrdp
 {
-    if(size(@_) != 4)
+    if(size(@_) != 5)
     {
         berror($1, beacon_command_detail("shadowrdp"));
         berror($1, "Invalid number of parameters");
         return;
     }
-    $args   = bof_pack($1, "zzz", $2, $3, $4);
+    $args   = bof_pack($1, "zzzz", $2, $3, $4, $5);
     beacon_inline_execute($1, readbof($1, "shadowrdp"), "go", $args);
 }
 
@@ -65,10 +65,11 @@ beacon_command_register(
 Command: shadowrdp
 Summary: Used to request ShadowRDP session invitation.
 
-Usage:   shadowrdp  <HOSTNAME> [<control>|<view>] <SESSIONID>
-         HOSTNAME           Required. Remote hostname.
-         [<control>|<view>] Required. Control level over remote session. Either 'control' or 'view'.
-         SESSIONID          Required. Target session id.
+Usage:   shadowrdp  <HOSTNAME> [<control>|<view>] <SESSIONID> [<NTLM>|<KERBEROS>]
+         HOSTNAME            Required. Remote hostname.
+         [<control>|<view>]  Required. Control level over remote session. Either 'control' or 'view'.
+         SESSIONID           Required. Target session id.
+         [<NTLM>|<KERBEROS>] Required. Authentication protocol to use. Either 'NTLM' or 'KERBEROS'.
                     
 "
 );

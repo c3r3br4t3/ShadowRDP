@@ -6,7 +6,7 @@ This repository contains two applications. One is a beacon object file, which i
 
 ## BOF Usage
 ```
-shadowrdp <HOSTNAME> [<control>|<view>] <SESSIONID>
+shadowrdp <HOSTNAME> [<control>|<view>] <SESSIONID> [<NTLM>|<KERBEROS>]
 ```
 
 # Resources
