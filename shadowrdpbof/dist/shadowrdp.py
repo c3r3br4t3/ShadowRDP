@@ -23,8 +23,8 @@ def shadowrdp( demonID, *params ):
         return False
     return TaskID
 
-RegisterCommand( shadowrdp, "", "shadowrdp", "Obtain invitation for remote session", 0, """<hostname> <controlreq> <sessionid>
-                    HOSTNAME             Required. The host to connecto to.
+RegisterCommand( shadowrdp, "", "shadowrdp", "Obtain invitation for remote session", 0, """<hostname> [<control>|<view>] <sessionid> [<NTLM>|<KERBEROS>]
+                    HOSTNAME             Required. The remote hostname.
                     [<control>|<view>]   Required. Control level over remote session.
                     SESSIONID            Required. Target session id.
                     [<NTLM>|<KERBEROS>]  Required. Authentication protocol to use.""", "hostname control 1 NTLM" )
